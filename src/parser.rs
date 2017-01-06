@@ -9,7 +9,10 @@ use regex::Regex;
  * DEF = Define *new* register (let)
      Usage: DEF <register name> <value>
      Note: A register name is case-sensitive and should only contain letters, numbers, and underscore; it should not start with a number; and it should not start with two underscores.
-           Do not use DEF to set an existing register to a value. use CPY instead.
+           Do not use DEF                 if regname_valid(tok) {
+                    return Err("Reg")
+                }
+to set an existing register to a value. use CPY instead.
            Each register is actually stored as a 32-bit integer.
 
  * INC = Increment register's value (++)
@@ -98,64 +101,103 @@ use regex::Regex;
 
  */
 
-pub mod parser {
-    const KEYWORDS: [str; 12] = ["def", "inc", "inct", "dec", "dect", "mul", "div",
-                                 "cpy", "jnz", "out", "outn", "outc"];
+const KEYWORDS: HashMap<&str, &'static str> = hashmap!(
+    "def" => "RB", "inc" => "R", "inct" => "RB", "dec" => "R", "dect" => "RB",
+    "mul" => "RB", "div" => "RB", "cpy" => "BR", "jnz" => "BB", "out" => "B",
+    "outn" => "B", "outc" => "B"
+);
 
-    /// Tokenizes the given string by whitespaces and returns the tokens in a Vec.
-    fn tokenize_line(line: &str) -> Vec<str> {
-        line.split_whitespace().collect::<Vec<_>>()
-    }
-
-    /// Checks if the given register name is valid.
-    pub fn regname_valid(name: &str) -> Result<(), &'static str> {
-
-        lazy_static! {
-            static ref CHAR_RE: Regex = Regex::new(r"[^0-9a-zA-Z_]").unwrap();
-            static ref ISDIGIT: Regex = Regex::new(r"[0-9]").unwrap();
-        }
-
-        // Regex match 1: forbidden characters
-        if CHAR_RE.is_match(name) {
-            return Err("Forbidden characters in register name '" + name + "'");
-        }
-        // Regex match 2: starting with a number
-        if ISDIGIT.is_match(name.char_at(0)) {
-            return Err("Register name '" + name + "' should not start with a digit");
-        }
-        // Method match: starting with "__"
-        if name.starts_with("__") {
-            return Err(
-                "Register name should not start with two underscores; "
-                "this is occupied for C code generation purposes.");
-        }
-        Ok()
-    }
-
-    /// Attempts to evaluate the given token and return the numeric value.
-    /// Also borrows the registers HashMap for lookups.
-    /// Example: evaluate_val("mny", {"t5" => 42, "mny" => -3}) returns -3
-    /// Example: evaluate_val("-41", {"irr" => 0}) returns -41
-    /// Note: For interpreter only
-    pub fn evaluate_val(tok: &str, regs: &HashMap<&str, i32>)
-                        -> Result<i32, &'static str> {
-        match i32::from_str(tok) {
-            Ok(literal) => literal,
-            Err(_) => {
-                let validate_result = regname_valid(tok);
-                if validate_result.is_err() {
-                    return Err("'" + tok + "' is an invalid register name: " +
-                               validate_result.err().unwrap());
-                }
-                let register_val = regs.get(tok);
-                if register_val.is_none() {
-                    return Err(format!(
-                        "'{}' is an unknown register name in this context", tok));
-                }
-                return Ok(register_val.unwrap());
-            }
-        }
-    }
-
-    ///
+/// Tokenizes the given string by whitespaces and returns the tokens in a Vec.
+fn tokenize_line(line: &str) -> Vec<&str> {
+    line.split_whitespace().collect::<Vec<_>>()
 }
+
+/// Checks if the given register name is valid.
+pub fn regname_valid(name: &str) -> Result<(), &'static str> {
+
+    lazy_static! {
+        static ref CHAR_RE: Regex = Regex::new(r"[^0-9a-zA-Z_]").unwrap();
+        static ref ISDIGIT: Regex = Regex::new(r"[0-9]").unwrap();
+    }
+
+    // Regex match 1: forbidden characters
+    if CHAR_RE.is_match(name) {
+        return Err("Forbidden characters in register name '" + name + "'");
+    }
+    // Regex match 2: starting with a number
+    if ISDIGIT.is_match(name.char_at(0)) {
+        return Err("Register name '" + name + "' should not start with a digit");
+    }
+    // Method match: starting with "__"
+    if name.starts_with("__") {
+        return Err(
+            "Register name should not start with two underscores; "
+            "this is occupied for C code generation purposes.");
+    }
+    Ok()
+}
+
+/// Checks whether the given token is an integer literal by attempting to convert it to an i32.
+/// If it is, return Ok(integer value of token)
+/// Otherwise return Err()
+fn is_literal(tok: &str) -> Result<i32, ()> {
+    match i32::from_str(tok) {
+        Ok(val) => val,
+        Err(_) => Err()
+    }
+}
+
+/// Checks if the given line of ASMB is valid.
+/// This function checks the keyword, parameter count, and parameter types (literal/register name)
+fn line_valid(line: &str) -> Result<(), &'static str> {
+    let toks = tokenize_line(line);
+    // Check 1: keyword
+    if !KEYWORDS.contains_key(toks[0].to_lowercase()) {
+        return Err("Unknown keyword");
+    }
+    let param_rule = KEYWORDS[toks[0].to_lowercase()];
+    // Check 2: param count
+    if param_rule.len() != toks.len() - 1 {
+        return Err(format!(
+            "Expected {} parameters, received {}", param_rule.len(), toks.len() - 1));
+    }
+    // Check 3: param type
+    for (index, rule) in param_rule.chars().enumerate() {
+        // index+1!
+        // rule can be 'R', 'L', or 'B'
+        let is_litparam = is_literal(toks[index+1]).is_ok();
+        if (is_litparam && rule == 'R') || (!is_litparam && rule == 'L') {
+            return Err(format!(
+                "Parameter '{}' does not comply with the parameter rules of keyword '{}' ({})",
+                toks[index+1], toks[0], rule));
+        }
+    }
+    Ok()
+}
+
+/// Attempts to evaluate the given token and return the numeric value.
+/// Also borrows the registers HashMap for lookups.
+/// Example: evaluate_val("mny", {"t5" => 42, "mny" => -3}) returns -3
+/// Example: evaluate_val("-41", {"irr" => 0}) returns -41
+/// Note: For interpreter only
+pub fn evaluate_val(tok: &str, regs: &HashMap<&str, i32>)
+                    -> Result<i32, &'static str> {
+    match i32::from_str(tok) {
+        Ok(literal) => return Ok(literal),
+        Err(_) => {
+            let validate_result = regname_valid(tok);
+            if validate_result.is_err() {
+                return Err("'" + tok + "' is an invalid register name: " +
+                            validate_result.err().unwrap());
+            }
+            let register_val = regs.get(tok);
+            if register_val.is_none() {
+                return Err(format!(
+                    "'{}' is an unknown register name in this context", tok));
+            }
+            return Ok(register_val.unwrap());
+        }
+    }
+}
+
+///

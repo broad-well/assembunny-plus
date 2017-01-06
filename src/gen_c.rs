@@ -1,4 +1,6 @@
 
+mod macros;
+
 /*
   This mod generates C code from Assembunny+.
 
@@ -37,21 +39,24 @@
     }
  */
 
-pub mod generate_c {
+// C semantics
+// NOTE: This is directly related to the "starting with '__'" check in parser.rs.
 
-    // C semantics
-    // NOTE: This is directly related to the "starting with '__'" check in parser.rs.
+/// Prefix of a C variable representing a register
+/// Example: "__asmb_reg_" means `int32_t __asmb_reg_rmta;` for register "rmta"
+const REG_VARNAME_PREFIX = "__asmb_reg_";
 
-    /// Prefix of a C variable representing a register
-    /// Example: "__asmb_reg_" means `int32_t __asmb_reg_rmta;` for register "rmta"
-    const REG_VARNAME_PREFIX = "__asmb_reg_";
-    /// Prefix of a C label representing a line in the .asmb source
-    /// Example: "__asmb_line_" means `__asmb_line_41:` for line 41
-    /// This is required for `jnz` to work.
-    const LINE_LABEL_PREFIX = "__asmb_line_";
-    /// Indentation characters
-    /// Choose between Tabs and Spaces (the battle is still on!)
-    /// TODO: Make the selection available as a command line option
-    const INDENT = "\t";
+/// Prefix of a C label representing a line in the .asmb source
+/// Example: "__asmb_line_" means `__asmb_line_41:` for line 41
+/// This is required for `jnz` to work.
+const LINE_LABEL_PREFIX = "__asmb_line_";
 
-}
+/// Indentation characters
+/// Choose between Tabs and Spaces (the battle is still on!)
+/// TODO: Make the selection available as a command line option
+const INDENT = "\t";
+
+/// Prototype of generated C code
+/// Will be used during the final compilation of C source
+const C_PROTOTYPE = "#include <stdio.h>\n#include <stdint.h>\n\nint main(void) "
+    "{\n##return 0;\n}";

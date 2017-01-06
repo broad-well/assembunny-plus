@@ -1,6 +1,6 @@
 [root]
-name = "assembunny_extended"
-version = "0.1.0"
+name = "assembunny_plus"
+version = "0.0.1"
 dependencies = [
  "clap 2.19.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
