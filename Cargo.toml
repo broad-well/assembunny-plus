@@ -1,0 +1,8 @@
+[package]
+name = "assembunny_extended"
+version = "0.1.0"
+authors = ["broad-well <michaelpeng2002@icloud.com>"]
+
+[dependencies]
+clap = "~2.19.0"
+regex = "0.2.1"
