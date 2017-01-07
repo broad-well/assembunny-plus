@@ -3,16 +3,14 @@ extern crate regex;
 use std::collections::HashMap;
 use std::str::FromStr;
 use regex::Regex;
+mod macros;
 
 /* Available keywords:
 
  * DEF = Define *new* register (let)
      Usage: DEF <register name> <value>
      Note: A register name is case-sensitive and should only contain letters, numbers, and underscore; it should not start with a number; and it should not start with two underscores.
-           Do not use DEF                 if regname_valid(tok) {
-                    return Err("Reg")
-                }
-to set an existing register to a value. use CPY instead.
+           Do not use DEF to set an existing register to a value. use CPY instead.
            Each register is actually stored as a 32-bit integer.
 
  * INC = Increment register's value (++)
@@ -62,8 +60,8 @@ to set an existing register to a value. use CPY instead.
        129  cpy mt qr
        130  jnz qr -2
        ---
-       In this example, when the program reaches line 130 it jumps to line 128 (or 130 + (-2)) because qr has a value of 14
- 
+       In this example, when the program reaches line 130 it jumps to line 128 (or 130 + (-2)) because qr has a value of 14, which is not 0. Once it finishes line 128 it proceeds to line 129 (instead of jumping back to line 131)
+
  * OUT = Write value to STDOUT, with trailing whitespace
      Usage: OUT <value (can be register name or literal)>
      Example:
@@ -140,7 +138,7 @@ pub fn regname_valid(name: &str) -> Result<(), &'static str> {
 /// Checks whether the given token is an integer literal by attempting to convert it to an i32.
 /// If it is, return Ok(integer value of token)
 /// Otherwise return Err()
-fn is_literal(tok: &str) -> Result<i32, ()> {
+pub fn is_literal(tok: &str) -> Result<i32, ()> {
     match i32::from_str(tok) {
         Ok(val) => val,
         Err(_) => Err()
@@ -199,5 +197,3 @@ pub fn evaluate_val(tok: &str, regs: &HashMap<&str, i32>)
         }
     }
 }
-
-///
