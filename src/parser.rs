@@ -193,7 +193,7 @@ pub fn evaluate_val(tok: &str, regs: &HashMap<&str, i32>)
                 return Err(format!(
                     "'{}' is an unknown register name in this context", tok));
             }
-            return Ok(register_val.unwrap());
+            Ok(register_val.unwrap())
         }
     }
 }

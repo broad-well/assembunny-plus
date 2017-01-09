@@ -25,9 +25,16 @@ mod exec {
     type Response = Result<(), &str>;
 
     // Using macros here because it can dictate parent function returns
-    macro_rules! expect_regname_exists {
-        ( $name:expr, $state:expr ) => (if !$state.regs.contains_key($name) {
-            return Err(format!("Register '{}' does not exist", $name));
+    macro_rules! getmut_reg_by_name {
+        ( $name:expr, $state:expr ) => (match $state.regs.get_mut($name) {
+            Some(val) => val,
+            _ => return Err(format!("Register '{}' does not exist", $name))
+        })
+    }
+    macro_rules! get_reg_by_name {
+        ( $name:expr, $state:expr ) => (match $state.regs.get($name) {
+            Some(val) => val,
+            _ => return Err(format!("Register '{}' does not exist", $name))
         })
     }
     macro_rules! unexpect_regname_exists {
@@ -35,30 +42,71 @@ mod exec {
             return Err(format!("Register '{}' already exists", $name));
         })
     }
+    macro_rules! try_eval {
+        ( $val:expr, $state:expr ) => (match parser::evaluate_val($val, &$state.regs) {
+            Err(why) => return Err(format!("Parameter evaluation failed: {}", why)),
+            Ok(val) => val
+        })
+    }
 
 
     fn def(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
         // Syntax: def <new register name> <evaluate_val candidate>
         unexpect_regname_exists!(toks[1], state);
-        match parser::evaluate_val(toks[2], &state.regs) {
-            Err(why) => return Err(format!("2nd parameter evaluation failure: {}", why)),
-            Ok(value) => {
-                state.regs.insert(toks[1], value);
-                return Ok();
-            }
-        }
+        state.regs.insert(toks[1], try_eval!(toks[2], state));
+        Ok()
     }
 
     fn inc(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
         // Syntax: inc <register name>
-        expect_regname_exists!(toks[1], state);
-        state.regs[toks[1]]++;
+        getmut_reg_by_name!(toks[1], state) += 1;
         Ok()
     }
 
     fn inct(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
         // Syntax: inct <register name> <evaluate_val candidate>
-        expect_regname_exists!(toks[1], state);
-        // TODO: finish
+        getmut_reg_by_name!(toks[1], state) += try_eval!(toks[2], state);
+        Ok()
+    }
+
+    fn dec(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
+        // Syntax: dec <register name>
+        getmut_reg_by_name!(toks[1], state) -= 1;
+        Ok()
+    }
+
+    fn dect(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
+        // Syntax: dect <register name> <value to be eval'd>
+        getmut_reg_by_name!(toks[1], state) -= try_eval!(toks[2], state);
+        Ok()
+    }
+
+    fn mul(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
+        // Syntax: mul <register name> <eval-ue>
+        getmut_reg_by_name!(toks[1], state) *= try_eval!(toks[2], state);
+        Ok()
+    }
+
+    fn div(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
+        // Syntax: div <register name> <eval-ue>
+        // Note: floor the result
+        getmut_reg_by_name!(toks[1], state) /= try_eval!(toks[2], state);
+        Ok()
+    }
+
+    fn cpy(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
+        // Syntax: cpy <eval-ue> <register name>
+        getmut_reg_by_name!(toks[2], state) = try_eval!(toks[1], state);
+        Ok()
+    }
+
+    fn jnz(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
+        // Syntax: cpy <eval-ue> <eval-ue>
+        // Since IP is incremented after each line, go to relative line **minus 1** so the program works properly.
+        if try_eval!(toks[1], state) != 0 {
+            // TODO: add under/overflow checks
+            state.ip += try_eval!(toks[2], state) - 1;
+        }
+        Ok()
     }
 }
