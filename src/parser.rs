@@ -1,5 +1,4 @@
 // Parser of Assembunny code, part of assembunny_extended
-extern crate regex;
 use std::collections::HashMap;
 use std::str::FromStr;
 use regex::Regex;
@@ -98,14 +97,14 @@ use regex::Regex;
 
  */
 
-const KEYWORDS: HashMap<&str, &'static str> = hashmap!(
+const KEYWORDS: HashMap<&'static str, &'static str> = hashmap!(
     "def" => "RB", "inc" => "R", "inct" => "RB", "dec" => "R", "dect" => "RB",
     "mul" => "RB", "div" => "RB", "cpy" => "BR", "jnz" => "BB", "out" => "B",
     "outn" => "B", "outc" => "B"
 );
 
 /// Tokenizes the given string by whitespaces and returns the tokens in a Vec.
-fn tokenize_line(line: &str) -> Vec<&str> {
+pub fn tokenize_line(line: &str) -> Vec<&str> {
     line.split_whitespace().collect::<Vec<_>>()
 }
 
@@ -119,19 +118,18 @@ pub fn regname_valid(name: &str) -> Result<(), &'static str> {
 
     // Regex match 1: forbidden characters
     if CHAR_RE.is_match(name) {
-        return Err("Forbidden characters in register name '" + name + "'");
+        return Err(&format!("Forbidden characters in register name '{}'", name));
     }
     // Regex match 2: starting with a number
-    if ISDIGIT.is_match(name.char_at(0)) {
-        return Err("Register name '" + name + "' should not start with a digit");
+    if ISDIGIT.is_match(name[0]) {
+        return Err(&format!("Register name '{}' should not start with a digit", name));
     }
     // Method match: starting with "__"
     if name.starts_with("__") {
         return Err(
-            "Register name should not start with two underscores; " +
-            "this is occupied for C code generation purposes.");
+            "Register name should not start with two underscores; this is occupied for C code generation purposes.");
     }
-    Ok()
+    Ok(())
 }
 
 /// Checks whether the given token is an integer literal by attempting to convert it to an i32.

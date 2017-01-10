@@ -1,6 +1,13 @@
 // Main command-line interface to parse Assembunny files (*.asmb)
+extern crate regex;
+#[macro_use] extern crate lazy_static;
+#[macro_use] extern crate maplit;
+extern crate clap;
 use clap::{Arg, App, SubCommand};
 use std::io;
+pub mod parser;
+pub mod interpret;
+pub mod gen_c;
 
 /// Main function for the CLI. Uses `clap` for args handling.
 fn main() {
