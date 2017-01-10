@@ -3,7 +3,6 @@ extern crate regex;
 use std::collections::HashMap;
 use std::str::FromStr;
 use regex::Regex;
-mod macros;
 
 /* Available keywords:
 
@@ -129,7 +128,7 @@ pub fn regname_valid(name: &str) -> Result<(), &'static str> {
     // Method match: starting with "__"
     if name.starts_with("__") {
         return Err(
-            "Register name should not start with two underscores; "
+            "Register name should not start with two underscores; " +
             "this is occupied for C code generation purposes.");
     }
     Ok()
@@ -148,6 +147,9 @@ pub fn is_literal(tok: &str) -> Result<i32, ()> {
 /// Checks if the given line of ASMB is valid.
 /// This function checks the keyword, parameter count, and parameter types (literal/register name)
 fn line_valid(line: &str) -> Result<(), &'static str> {
+    if line.starts_with("/") || line.starts_with("#") || line.starts_with(":") {
+        return Ok();
+    }
     let toks = tokenize_line(line);
     // Check 1: keyword
     if !KEYWORDS.contains_key(toks[0].to_lowercase()) {
@@ -181,7 +183,7 @@ fn line_valid(line: &str) -> Result<(), &'static str> {
 pub fn evaluate_val(tok: &str, regs: &HashMap<&str, i32>)
                     -> Result<i32, &'static str> {
     match i32::from_str(tok) {
-        Ok(literal) => return Ok(literal),
+        Ok(literal) => Ok(literal),
         Err(_) => {
             let validate_result = regname_valid(tok);
             if validate_result.is_err() {

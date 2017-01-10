@@ -1,5 +1,3 @@
-mod parser;
-mod macros;
 use std::collections::HashMap;
 
 /*
@@ -18,11 +16,13 @@ struct AsmbiState {
 
 }
 
+/// Syntactic sugar for all return values in exec.
+type Response = Result<(), &str>;
+
 /// Module consisting of executors for each keyword.
 /// Each function has two arguments: mutable reference to AsmbiState and Vec<&str> tokens from the parser.
 /// The tokens are expected to be passed by parser::line_valid. If an error that was supposed to be caught in that function is encountered here, the program will panic!, reminding the developer that parser::line_valid is not working properly.
 mod exec {
-    type Response = Result<(), &str>;
 
     // Using macros here because it can dictate parent function returns
     macro_rules! getmut_reg_by_name {
@@ -108,5 +108,34 @@ mod exec {
             state.ip += try_eval!(toks[2], state) - 1;
         }
         Ok()
+    }
+
+    fn out(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
+        // Syntax: out <eval-ue>
+        println!("{} ", try_eval!(toks[1], state));
+        Ok()
+    }
+}
+
+pub fn execute(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
+    // Redundancy can be solved with anonymous closures in HashMaps
+    match toks[0].to_lowercase() {
+        "def" => exec::def(state, toks),
+        "inc" => exec::inc(state, toks),
+        "inct" => exec::inct(state, toks),
+        "dec" => exec::dec(state, toks),
+        "dect" => exec::dect(state, toks),
+        "mul" => exec::mul(state, toks),
+        "div" => exec::div(state, toks),
+        "cpy" => exec::cpy(state, toks),
+        "jnz" => exec::jnz(state, toks),
+        "out" => exec::out(state, toks)
+    }
+}
+
+pub fn new_state() -> &mut AsmbiState {
+    AsmbiState {
+        regs: HashMap::new(),
+        ip: 0
     }
 }

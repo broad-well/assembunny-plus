@@ -1,6 +1,4 @@
 
-mod macros;
-
 /*
   This mod generates C code from Assembunny+.
 
@@ -58,5 +56,5 @@ const INDENT = "\t";
 
 /// Prototype of generated C code
 /// Will be used during the final compilation of C source
-const C_PROTOTYPE = "#include <stdio.h>\n#include <stdint.h>\n\nint main(void) "
+const C_PROTOTYPE = "#include <stdio.h>\n#include <stdint.h>\n\nint main(void) " +
     "{\n##return 0;\n}";
