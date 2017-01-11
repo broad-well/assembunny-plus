@@ -34,12 +34,16 @@ fn main() {
                 .expect("Line read failed");
             input.trim();
 
-            let tokens = parser::tokenize_line(input);
+            let tokens = parser::tokenize_line(&input);
 
             if input.starts_with(":") {
                 match tokens[0] {
                     ":help" => println!("Not available now"),
-                    ":reg" => println!("{}", state.regs),
+                    ":reg" => {
+                        for key,val in &state.regs {
+                            println!("{} => {}", key, val);
+                        }
+                    },
                     ":exit" => {
                         println!("Bye");
                         break
@@ -52,7 +56,7 @@ fn main() {
                 continue
             }
 
-            interpret::execute(state, tokens);
+            interpret::execute(&mut state, tokens);
         }
     }
 }
