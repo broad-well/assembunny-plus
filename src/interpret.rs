@@ -43,11 +43,16 @@ impl RegisterMap {
     }
 
     pub fn modify<F>(&mut self, name: &str, modifier: F) -> bool
-            where F: Fn(&i32) -> i32 {
-        match self.get(name) {
-            Some(val) => self.set(name, modifier(val)),
-            None => false
-        }
+            where F: Fn(i32) -> i32 {
+		let mut optval: i32 = 0;
+		{
+			match self.get(name) {
+				Some(val) => optval = *val,
+				None => return false
+			}
+
+		}
+		self.set(name, modifier(optval))
     }
 
     pub fn new() -> Self {
@@ -86,8 +91,9 @@ mod exec {
 
     pub fn def(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
         // Syntax: def <new register name> <evaluate_val candidate>
+		let val = try_eval!(toks[2], state);
         try_do!(
-            state.regs.add(toks[1], try_eval!(toks[2], state)),
+            state.regs.add(toks[1], val),
             format!("Register by name '{}' already exists", toks[1]))
     }
 
@@ -100,8 +106,9 @@ mod exec {
 
     pub fn inct(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
         // Syntax: inct <register name> <evaluate_val candidate>
+		let add = try_eval!(toks[2], state);
         try_do!(
-            state.regs.modify(toks[1], |v| v + try_eval!(toks[2], state)),
+            state.regs.modify(toks[1], |v| v+add),
             err_nonexist!(toks[1]))
     }
 
@@ -114,30 +121,34 @@ mod exec {
 
     pub fn dect(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
         // Syntax: dect <register name> <value to be eval'd>
+		let subt = try_eval!(toks[2], state);
         try_do!(
-            state.regs.modify(toks[1], |v| v - try_eval!(toks[2], state)),
+            state.regs.modify(toks[1], |v| v - subt),
             err_nonexist!(toks[1]))
     }
 
     pub fn mul(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
         // Syntax: mul <register name> <eval-ue>
+		let multiplier = try_eval!(toks[2], state);
         try_do!(
-            state.regs.modify(toks[1], |v| v * try_eval!(toks[2], state)),
+            state.regs.modify(toks[1], |v| v * multiplier),
             err_nonexist!(toks[1]))
     }
 
     pub fn div(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
         // Syntax: div <register name> <eval-ue>
         // Note: floor the result
+		let divisor = try_eval!(toks[2], state);
         try_do!(
-            state.regs.modify(toks[1], |v| v / try_eval!(toks[2], state)),
+            state.regs.modify(toks[1], |v| v / divisor),
             err_nonexist!(toks[1]))
     }
 
     pub fn cpy(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
         // Syntax: cpy <eval-ue> <register name>
+		let val: i32 = try_eval!(toks[1], state);
         try_do!(
-            state.regs.set(toks[2], try_eval!(toks[1], state)),
+            state.regs.set(toks[2], val),
             format!("Register by the name of '{}' does not exist. Perhaps use DEF instead?", toks[2]))
     }
 
@@ -160,6 +171,9 @@ mod exec {
 
 pub fn execute(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
     // Redundancy can be solved with anonymous closures in HashMaps
+	if let Err(err) = parser::line_valid(&toks) {
+		return Err(format!("Invalid: {}", err));
+	}
     match toks[0].to_lowercase().as_str() {
         "def" => exec::def(state, toks),
         "inc" => exec::inc(state, toks),
@@ -170,7 +184,8 @@ pub fn execute(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
         "div" => exec::div(state, toks),
         "cpy" => exec::cpy(state, toks),
         "jnz" => exec::jnz(state, toks),
-        "out" => exec::out(state, toks)
+        "out" => exec::out(state, toks),
+		_ => Err(format!("Unknown keyword: {}", toks[0]))
     }
 }
 

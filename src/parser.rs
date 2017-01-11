@@ -97,19 +97,13 @@ use regex::Regex;
 
  */
 
-const KEYWORDS: HashMap<&'static str, &'static str> = hashmap!(
-    "def" => "RB", "inc" => "R", "inct" => "RB", "dec" => "R", "dect" => "RB",
-    "mul" => "RB", "div" => "RB", "cpy" => "BR", "jnz" => "BB", "out" => "B",
-    "outn" => "B", "outc" => "B"
-);
-
 /// Tokenizes the given string by whitespaces and returns the tokens in a Vec.
 pub fn tokenize_line(line: &str) -> Vec<&str> {
     line.split_whitespace().collect::<Vec<_>>()
 }
 
 /// Checks if the given register name is valid.
-pub fn regname_valid(name: &str) -> Result<(), &'static str> {
+pub fn regname_valid(name: &str) -> Result<(), String> {
 
     lazy_static! {
         static ref CHAR_RE: Regex = Regex::new(r"[^0-9a-zA-Z_]").unwrap();
@@ -118,16 +112,16 @@ pub fn regname_valid(name: &str) -> Result<(), &'static str> {
 
     // Regex match 1: forbidden characters
     if CHAR_RE.is_match(name) {
-        return Err(&format!("Forbidden characters in register name '{}'", name));
+        return Err(format!("Forbidden characters in register name '{}'", name));
     }
     // Regex match 2: starting with a number
     if ISDIGIT.is_match(&name[0..1]) {
-        return Err(&format!("Register name '{}' should not start with a digit", name));
+        return Err(format!("Register name '{}' should not start with a digit", name));
     }
     // Method match: starting with "__"
     if name.starts_with("__") {
         return Err(
-            "Register name should not start with two underscores; this is occupied for C code generation purposes.");
+            "Register name should not start with two underscores; this is occupied for C code generation purposes.".to_owned());
     }
     Ok(())
 }
@@ -144,21 +138,27 @@ pub fn is_literal(tok: &str) -> Result<i32, ()> {
 
 /// Checks if the given line of ASMB is valid.
 /// This function checks the keyword, parameter count, and parameter types (literal/register name)
-fn line_valid(line: &str) -> Result<(), &'static str> {
-    if line.starts_with("/") || line.starts_with("#") || line.starts_with(":") {
+pub fn line_valid(toks: &Vec<&str>) -> Result<(), String> {
+	lazy_static! {
+		static ref KEYWORDS: HashMap<&'static str, &'static str> = hashmap!(
+		    "def" => "RB", "inc" => "R", "inct" => "RB", "dec" => "R", "dect" => "RB",
+		    "mul" => "RB", "div" => "RB", "cpy" => "BR", "jnz" => "BB", "out" => "B",
+		    "outn" => "B", "outc" => "B"
+		);
+	}
+    if toks[0].starts_with("/") || toks[0].starts_with("#") || toks[0].starts_with(":") {
         return Ok(());
     }
-    let toks = tokenize_line(line);
     let kw = toks[0].to_lowercase();
     // Check 1: keyword
-    if !KEYWORDS.contains_key(&kw) {
-        return Err("Unknown keyword");
+    if !KEYWORDS.contains_key(&kw.as_str()) {
+        return Err(format!("Unknown keyword '{}'", kw));
     }
-    let param_rule = KEYWORDS[&toks[0].to_lowercase()];
+    let param_rule = KEYWORDS.get(&kw.as_str()).unwrap();
     // Check 2: param count
     if param_rule.len() != toks.len() - 1 {
         return Err(format!(
-            "Expected {} parameters, received {}", param_rule.len(), toks.len() - 1));
+            "Expected {} parameter(s), received {}", param_rule.len(), toks.len() - 1));
     }
     // Check 3: param type
     for (index, rule) in param_rule.chars().enumerate() {
@@ -180,7 +180,7 @@ fn line_valid(line: &str) -> Result<(), &'static str> {
 /// Example: evaluate_val("-41", {"irr" => 0}) returns -41
 /// Note: For interpreter only
 pub fn evaluate_val(tok: &str, regs: &HashMap<String, i32>)
-                    -> Result<i32, &'static str> {
+                    -> Result<i32, String> {
     match i32::from_str(tok) {
         Ok(literal) => Ok(literal),
         Err(_) => {

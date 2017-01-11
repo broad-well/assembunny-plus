@@ -3,8 +3,9 @@ extern crate regex;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate maplit;
 extern crate clap;
-use clap::{Arg, App, SubCommand};
+use clap::{Arg, App};
 use std::io;
+use std::io::Write;
 pub mod parser;
 pub mod interpret;
 pub mod gen_c;
@@ -17,7 +18,7 @@ fn main() {
         .about("A C compiler and interpreter for Assembunny+, an ASM-like language extended from the Assembunny concept in Advent of Code 2016")
         .arg(Arg::with_name("interpret")
             .short("i")
-            .long("config")
+            .long("interpret")
             .value_name("asmb file")
             .help("Launches the ASMB intepreter, or interprets a file if the filename is provided")
             .takes_value(true))
@@ -28,11 +29,12 @@ fn main() {
         println!("Use :help for help, :reg for registers and their values, and :unlicense for the unlicense.");
         println!("At the > prompt, enter your lines of Assembunny-plus.");
         let mut state = interpret::new_state();
-        while true {
+        loop {
+			print!(">");
+			io::stdout().flush().expect("Stdout clogged");
             let mut input = String::new();
             io::stdin().read_line(&mut input)
                 .expect("Line read failed");
-            input.trim();
 
             let tokens = parser::tokenize_line(&input);
 
@@ -40,7 +42,7 @@ fn main() {
                 match tokens[0] {
                     ":help" => println!("Not available now"),
                     ":reg" => {
-                        for (key,val) in &state.regs {
+                        for (key,val) in &state.regs.map {
                             println!("{} => {}", key, val);
                         }
                     },
@@ -50,13 +52,17 @@ fn main() {
                     },
                     _ => {}
                 }
-            }
-            if tokens[0].to_lowercase() == "jnz" {
-                println!("The REPL does not support JNZ yet.");
-                continue
+				continue;
             }
 
-            interpret::execute(&mut state, tokens);
+            if tokens[0].to_lowercase() == "jnz" {
+                println!("The REPL does not support JNZ yet.");
+                continue;
+            }
+
+            if let Err(errmsg) = interpret::execute(&mut state, tokens) {
+				println!("Failed: {}", errmsg);
+			}
         }
     }
 }
