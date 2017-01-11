@@ -40,7 +40,7 @@ fn main() {
                 match tokens[0] {
                     ":help" => println!("Not available now"),
                     ":reg" => {
-                        for key,val in &state.regs {
+                        for (key,val) in &state.regs {
                             println!("{} => {}", key, val);
                         }
                     },

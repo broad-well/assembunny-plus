@@ -121,7 +121,7 @@ pub fn regname_valid(name: &str) -> Result<(), &'static str> {
         return Err(&format!("Forbidden characters in register name '{}'", name));
     }
     // Regex match 2: starting with a number
-    if ISDIGIT.is_match(name[0]) {
+    if ISDIGIT.is_match(&name[0..1]) {
         return Err(&format!("Register name '{}' should not start with a digit", name));
     }
     // Method match: starting with "__"
@@ -136,9 +136,9 @@ pub fn regname_valid(name: &str) -> Result<(), &'static str> {
 /// If it is, return Ok(integer value of token)
 /// Otherwise return Err()
 pub fn is_literal(tok: &str) -> Result<i32, ()> {
-    match i32::from_str(tok) {
-        Ok(val) => val,
-        Err(_) => Err()
+    match tok.parse::<i32>() {
+        Ok(val) => Ok(val),
+        Err(_) => Err(())
     }
 }
 
@@ -146,14 +146,15 @@ pub fn is_literal(tok: &str) -> Result<i32, ()> {
 /// This function checks the keyword, parameter count, and parameter types (literal/register name)
 fn line_valid(line: &str) -> Result<(), &'static str> {
     if line.starts_with("/") || line.starts_with("#") || line.starts_with(":") {
-        return Ok();
+        return Ok(());
     }
     let toks = tokenize_line(line);
+    let kw = toks[0].to_lowercase();
     // Check 1: keyword
-    if !KEYWORDS.contains_key(toks[0].to_lowercase()) {
+    if !KEYWORDS.contains_key(&kw) {
         return Err("Unknown keyword");
     }
-    let param_rule = KEYWORDS[toks[0].to_lowercase()];
+    let param_rule = KEYWORDS[&toks[0].to_lowercase()];
     // Check 2: param count
     if param_rule.len() != toks.len() - 1 {
         return Err(format!(
@@ -170,7 +171,7 @@ fn line_valid(line: &str) -> Result<(), &'static str> {
                 toks[index+1], toks[0], rule));
         }
     }
-    Ok()
+    Ok(())
 }
 
 /// Attempts to evaluate the given token and return the numeric value.
@@ -178,22 +179,21 @@ fn line_valid(line: &str) -> Result<(), &'static str> {
 /// Example: evaluate_val("mny", {"t5" => 42, "mny" => -3}) returns -3
 /// Example: evaluate_val("-41", {"irr" => 0}) returns -41
 /// Note: For interpreter only
-pub fn evaluate_val(tok: &str, regs: &HashMap<&str, i32>)
+pub fn evaluate_val(tok: &str, regs: &HashMap<String, i32>)
                     -> Result<i32, &'static str> {
     match i32::from_str(tok) {
         Ok(literal) => Ok(literal),
         Err(_) => {
             let validate_result = regname_valid(tok);
             if validate_result.is_err() {
-                return Err("'" + tok + "' is an invalid register name: " +
-                            validate_result.err().unwrap());
+                return Err(format!("'{}' is an invalid register name: {}", tok, validate_result.err().unwrap()));
             }
             let register_val = regs.get(tok);
             if register_val.is_none() {
                 return Err(format!(
                     "'{}' is an unknown register name in this context", tok));
             }
-            Ok(register_val.unwrap())
+            Ok(*register_val.unwrap())
         }
     }
 }
