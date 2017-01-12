@@ -1,0 +1,28 @@
+def diff 32
+def seq0 72
+def seq1 69
+def seq23 76
+def seq4 79
+def seq5 87
+def seq6 seq4
+def seq7 82
+def seq8 76
+def seq9 68
+
+# Start printing
+outc seq0
+inct seq1 diff
+outc seq1
+outc seq23
+outc seq23
+inct seq4 diff
+outc seq4
+outc 32
+outc seq5
+inct seq6 diff
+outc seq6
+outc seq7
+inct seq8 diff
+outc seq8
+outc seq9
+# Should equal to "HeLLo WoRlD"

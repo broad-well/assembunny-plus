@@ -1,0 +1,62 @@
+#include <stdio.h>
+#include <stdint.h>
+
+int main(void) {
+__asmb_line_1:;
+	int32_t __asmb_reg_a = 0;
+__asmb_line_2:;
+	int32_t __asmb_reg_b = 0;
+__asmb_line_3:;
+	int32_t __asmb_reg_c = 0;
+__asmb_line_4:;
+	int32_t __asmb_reg_d = 0;
+__asmb_line_5:;
+	__asmb_reg_a = 1;
+__asmb_line_6:;
+	__asmb_reg_b = 1;
+__asmb_line_7:;
+	__asmb_reg_d = 26;
+__asmb_line_8:;
+	if (__asmb_reg_c != 0) goto __asmb_line_10;
+__asmb_line_9:;
+	if (1 != 0) goto __asmb_line_14;
+__asmb_line_10:;
+	__asmb_reg_c = 7;
+__asmb_line_11:;
+	++__asmb_reg_d;
+__asmb_line_12:;
+	--__asmb_reg_c;
+__asmb_line_13:;
+	if (__asmb_reg_c != 0) goto __asmb_line_11;
+__asmb_line_14:;
+	__asmb_reg_c = __asmb_reg_a;
+__asmb_line_15:;
+	++__asmb_reg_a;
+__asmb_line_16:;
+	--__asmb_reg_b;
+__asmb_line_17:;
+	if (__asmb_reg_b != 0) goto __asmb_line_15;
+__asmb_line_18:;
+	__asmb_reg_b = __asmb_reg_c;
+__asmb_line_19:;
+	--__asmb_reg_d;
+__asmb_line_20:;
+	if (__asmb_reg_d != 0) goto __asmb_line_14;
+__asmb_line_21:;
+	__asmb_reg_c = 19;
+__asmb_line_22:;
+	__asmb_reg_d = 11;
+__asmb_line_23:;
+	++__asmb_reg_a;
+__asmb_line_24:;
+	--__asmb_reg_d;
+__asmb_line_25:;
+	if (__asmb_reg_d != 0) goto __asmb_line_23;
+__asmb_line_26:;
+	--__asmb_reg_c;
+__asmb_line_27:;
+	if (__asmb_reg_c != 0) goto __asmb_line_22;
+__asmb_line_28:;
+	printf("%d\n", __asmb_reg_a);
+return 0;
+}
