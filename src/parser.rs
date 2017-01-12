@@ -48,7 +48,7 @@ use regex::Regex;
 
  * JNZ = Jump to instruction relative to itself
      Explanation: This keyword causes a jump to the line that's _Y_ lines away from this instruction *if _X_ is not zero*
-     Usage: JNZ <X> <Y>
+     Usage: JNZ <X> <literal>
 
      Example:
        125  inc ej
@@ -97,6 +97,8 @@ use regex::Regex;
 
  */
 
+pub const COMMENT_PREFIXES: &'static str = "#/:;\"'";
+
 /// Tokenizes the given string by whitespaces and returns the tokens in a Vec.
 pub fn tokenize_line(line: &str) -> Vec<&str> {
     line.split_whitespace().collect::<Vec<_>>()
@@ -142,7 +144,7 @@ pub fn line_valid(toks: &Vec<&str>) -> Result<(), String> {
 	lazy_static! {
 		static ref KEYWORDS: HashMap<&'static str, &'static str> = hashmap!(
 		    "def" => "RB", "inc" => "R", "inct" => "RB", "dec" => "R", "dect" => "RB",
-		    "mul" => "RB", "div" => "RB", "cpy" => "BR", "jnz" => "BB", "out" => "B",
+		    "mul" => "RB", "div" => "RB", "cpy" => "BR", "jnz" => "BL", "out" => "B",
 		    "outn" => "B", "outc" => "B"
 		);
 	}
@@ -196,4 +198,20 @@ pub fn evaluate_val(tok: &str, regs: &HashMap<String, i32>)
             Ok(*register_val.unwrap())
         }
     }
+}
+
+/// Returns Ok if the line of given tokens is worthy of execution.
+/// Err with reason if it's a comment or it's blank (empty).
+pub fn worth_execution(toks: &Vec<&str>) -> Result<(), &'static str> {
+	// Empty line
+	if toks.is_empty() {
+		return Err("Line is empty");
+	}
+
+	// Comments
+	if COMMENT_PREFIXES.contains(toks[0].chars().next().unwrap()) {
+		return Err("Line is a comment");
+	}
+
+	Ok(())
 }

@@ -69,6 +69,7 @@ type Response = Result<(), String>;
 /// Each function has two arguments: mutable reference to AsmbiState and Vec<&str> tokens from the parser.
 /// The tokens are expected to be passed by parser::line_valid. If an error that was supposed to be caught in that function is encountered here, the program will panic!, reminding the developer that parser::line_valid is not working properly.
 mod exec {
+	use std::char;
     use interpret::{AsmbiState, Response};
     use parser;
 
@@ -91,6 +92,10 @@ mod exec {
 
     pub fn def(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
         // Syntax: def <new register name> <evaluate_val candidate>
+		if let Err(problem) = parser::regname_valid(toks[1]) {
+			return Err(format!("Register name '{}' invalid: {}", toks[1], problem));
+		}
+
 		let val = try_eval!(toks[2], state);
         try_do!(
             state.regs.add(toks[1], val),
@@ -153,27 +158,59 @@ mod exec {
     }
 
     pub fn jnz(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
-        // Syntax: cpy <eval-ue> <eval-ue>
+        // Syntax: cpy <eval-ue> <literal>
         // Since IP is incremented after each line, go to relative line **minus 1** so the program works properly.
         if try_eval!(toks[1], state) != 0 {
             // TODO: add under/overflow checks
-            state.ip += (try_eval!(toks[2], state) - 1) as u32;
+			// Ugly hack for u32 adding i32; hope this will be supported in future versions of Rust.
+			let diff = try_eval!(toks[2], state) - 1;
+			if diff < 0 {
+				state.ip -= (-diff) as u32
+			} else {
+				state.ip += diff as u32
+			}
         }
         Ok(())
     }
 
     pub fn out(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
         // Syntax: out <eval-ue>
-        println!("{} ", try_eval!(toks[1], state));
+        print!("{} ", try_eval!(toks[1], state));
         Ok(())
     }
+
+    pub fn outn(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
+        // Syntax: outn <eval-ue>
+		println!("{}", try_eval!(toks[1], state));
+		Ok(())
+    }
+
+	pub fn outc(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
+		// Syntax: outc <eval-ue>
+		let val = try_eval!(toks[1], state);
+		if val < 0 {
+			return Err(format!("Char code ({}) should not be less than zero", val));
+		}
+		match char::from_u32(val as u32) {
+			Some(v) => print!("{}", v),
+			_ => return Err(format!("Char code ({}) is invalid", val))
+		}
+		Ok(())
+	}
 }
 
 pub fn execute(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
     // Redundancy can be solved with anonymous closures in HashMaps
+	// Worth executing?
+	if parser::worth_execution(&toks).is_err() {
+		return Ok(());
+	}
+
+	// Line checked and invalid
 	if let Err(err) = parser::line_valid(&toks) {
 		return Err(format!("Invalid: {}", err));
 	}
+
     match toks[0].to_lowercase().as_str() {
         "def" => exec::def(state, toks),
         "inc" => exec::inc(state, toks),
@@ -185,6 +222,8 @@ pub fn execute(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
         "cpy" => exec::cpy(state, toks),
         "jnz" => exec::jnz(state, toks),
         "out" => exec::out(state, toks),
+		"outn" => exec::outn(state, toks),
+		"outc" => exec::outc(state, toks),
 		_ => Err(format!("Unknown keyword: {}", toks[0]))
     }
 }
