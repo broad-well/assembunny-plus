@@ -12,19 +12,21 @@ macro_rules! try_do_res {
 	});
 }
 
-pub fn run_file(filename: &str) -> Result<(), String> {
+pub fn run_file(filename: &str) -> Result<u64, String> {
 	let mut file = try_do_res!(File::open(filename), "File not found");
 	let mut fstr = String::new();
 	try_do_res!(file.read_to_string(&mut fstr), "File unreadable");
 	let mut state = interpret::new_state();
+	let mut line_count: u64 = 0;
 
 	while let Some(line) = fstr.lines().nth(state.ip as usize) {
 		if let Err(errno) = interpret::execute(&mut state, parser::tokenize_line(line)) {
 			return Err(format!("Interpretation of line {} failed: {}", state.ip, errno));
 		}
 		state.ip += 1;
+		line_count += 1;
 	}
-	Ok(())
+	Ok(line_count)
 }
 
 pub fn compile_file(filename: &str) -> Result<String, String> {

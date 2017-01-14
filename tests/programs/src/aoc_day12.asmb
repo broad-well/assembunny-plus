@@ -1,7 +1,8 @@
 # ASMB+ modification
 def a 0
 def b 0
-def c 0
+def c 1
+# 318020 when c is 0, 9227674 when c is 1
 def d 0
 
 cpy 1 a
@@ -29,4 +30,3 @@ dec c
 jnz c -5
 
 outn a
-# Must be 318020
