@@ -1,0 +1,10 @@
+def i 20
+def a 1
+def b 1
+
+out a
+out b
+inct a b
+inct b a
+dec i
+jnz i -5
