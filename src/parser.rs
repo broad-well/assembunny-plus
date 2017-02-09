@@ -1,6 +1,7 @@
 // Parser of Assembunny code, part of assembunny_extended
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::fmt;
 use regex::Regex;
 
 /* Available keywords:
@@ -98,6 +99,8 @@ use regex::Regex;
  */
 
 pub const COMMENT_PREFIXES: &'static str = "#/:;\"'";
+pub const KEYWORD_INDEX: [&'static str; 12] = 
+    ["def", "inc", "inct", "dec", "dect", "mul", "div", "cpy", "jnz", "out", "outn", "outc"];
 
 /// Tokenizes the given string by whitespaces and returns the tokens in a Vec.
 pub fn tokenize_line(line: &str) -> Vec<&str> {
@@ -214,4 +217,71 @@ pub fn worth_execution(toks: &Vec<&str>) -> Result<(), &'static str> {
 	}
 
 	Ok(())
+}
+
+// New pre-compilation utilities
+
+/// Describes a generated token from the source file.
+/// Token types are in the `TokenType` enum.
+/// `val` can represent a literal, a register index, or a keyword index.
+pub struct Token {
+    pub type_: TokenType,
+    pub val: i32,
+}
+
+impl Token {
+    fn new(type_: TokenType, val: i32) -> Self {
+        Token {
+            type_: type_,
+            val: val,
+        }
+    }
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, fmtr: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmtr, "Token<type={:?},val={}>", self.type_, self.val)
+    }
+}
+
+/// Describes the types a token can be. (denoted by a `Token`'s `type_` property)
+#[derive(Debug)]
+pub enum TokenType {
+    KEYWORD,
+    REGISTER,
+    LITERAL,
+}
+
+impl fmt::Display for TokenType {
+    fn fmt(&self, fmtr: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmtr, "{:?}", self)
+    }
+}
+
+pub fn index_of<T: PartialEq>(slice: &[T], item: &T) -> Option<usize> {
+    slice.iter().position(|elem| elem == item)
+}
+
+pub fn to_tokens(line: &str, existing_regs: &mut Vec<String>) -> Result<Vec<Token>, String> {
+    let str_toks = tokenize_line(line);
+    if let Err(problem) = line_valid(&str_toks) {
+        return Err(format!("Line invalid: {}", problem));
+    }
+
+    // If keyword is "def", add the defined register to `existing_regs` because the existence of this register will be checked later
+    if str_toks[0].to_lowercase() == "def" {
+        existing_regs.push(str_toks[1].to_owned());
+    }
+
+    let mut output: Vec<Token> = vec![Token::new(TokenType::KEYWORD, index_of(&KEYWORD_INDEX, &&*str_toks[0].to_lowercase()).unwrap() as i32)];
+    for index in 1..str_toks.len()-1 {
+        if let Ok(val) = is_literal(str_toks[index]) {
+            output.push(Token::new(TokenType::LITERAL, val));
+        } else if !existing_regs.contains(&str_toks[index].to_owned()) {
+            return Err(format!("Register name unknown: {}", str_toks[index]));
+        } else {
+            output.push(Token::new(TokenType::REGISTER, index_of(existing_regs, &str_toks[index].to_owned()).unwrap() as i32));
+        }
+    }
+    Ok(output)
 }

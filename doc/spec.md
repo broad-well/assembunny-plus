@@ -20,7 +20,7 @@
   * [(4.2) Interpreting a File](#4.2)
   * [(4.3) Compiling a File to C](#4.3)
 
-<hr/>
+---
 
 ## <a name="1" /> Description
 
@@ -54,3 +54,12 @@ def c 0
 def d 0
 ```
 - The `TGL` keyword, introduced in [Advent of Code 2016 Day 23](https://adventofcode.com/2016/day/23), is not implemented yet.
+
+### <a name="1.4" /> Terminology
+
+Alternative names for Assembunny-plus include _"ASMBP"_, _"ASMB+"_, and _"ASMB"_. These names will not be used in this document for clarity purposes, but they are used extensively throughout Assembunny-plus's source code in order to save space.
+
+"ASMB" is Assembunny-plus's official filename extension for its source code files.
+
+## <a name="2" /> Registers
+

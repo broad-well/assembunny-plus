@@ -15,27 +15,26 @@ pub mod loader;
 
 /// Main function for the CLI. Uses `clap` for args handling.
 fn main() {
-    let clap_matches = App::new("Assembunny-plus")
-        .version("0.0.1")
-        .author("Michael P. <michael@mcmoo.org>")
-        .about("A C compiler and interpreter for Assembunny+, an ASM-like language extended from the Assembunny concept in Advent of Code 2016")
-        .arg(Arg::with_name("interpret")
-            .short("i")
-            .long("interpret")
-            .value_name("asmb file")
-            .help("Launches the ASMB intepreter, or interprets a file if the filename is provided")
+	let clap_matches = App::new("Assembunny-plus")
+		.version("0.0.1")
+		.author("Michael P. <michael@mcmoo.org>")
+		.about("A C compiler and interpreter for Assembunny+, an ASM-like language extended from the Assembunny concept in Advent of Code 2016")
+		.arg(Arg::with_name("interpret")
+			.short("i")
+			.long("interpret")
+			.value_name("asmb file")
+			.help("Launches the ASMB intepreter, or interprets a file if the filename is provided")
 			.required(false)
-            .takes_value(true))
+			.takes_value(true))
 		.arg(Arg::with_name("compile")
 			.short("c")
 			.long("compile")
 			.value_name("asmb file")
 			.help("Compiles the given ASMB file to C source code and prints it to STDOUT")
 			.takes_value(true))
-        .get_matches();
+		.get_matches();
 
 	if clap_matches.is_present("interpret") {
-
 		if let Err(errno) = loader::run_file(
 			clap_matches.value_of("interpret").unwrap()) {
 			println!("{} {}", Red.paint("Run file failed:"), errno);

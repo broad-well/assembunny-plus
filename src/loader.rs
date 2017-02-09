@@ -7,7 +7,7 @@ use gen_c;
 
 macro_rules! try_do_res {
 	( $fun:expr, $err:expr ) => (match $fun {
-		Ok(_) => $fun.unwrap(),
+		Ok(x) => x,
 		Err(_) => return Err($err.to_owned())
 	});
 }

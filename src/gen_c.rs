@@ -4,38 +4,38 @@ use parser;
   The conventional usage of gen_c is after the user has "checked" their code with the interpreter. Therefore, the C generator does not provide any checks except parser::line_valid.
 
   Example:
-    (ASMB)
-    1  def a 0
-    2  def b 0
-    3  def c 0
-    4  def d 0
-    5  inct c d
-    6  inc a
-    7  outn a
+	(ASMB)
+	1  def a 0
+	2  def b 0
+	3  def c 0
+	4  def d 0
+	5  inct c d
+	6  inc a
+	7  outn a
 
-      |
-      V
+	  |
+	  V
 
-    (C)
-    #include <stdio.h>
-    #include <stdint.h>
+	(C)
+	#include <stdio.h>
+	#include <stdint.h>
 
-    int main(void) {
-    __asmb_line_1:
-        int32_t __asmb_reg_a = 0;
-    __asmb_line_2:
-        int32_t __asmb_reg_b = 0;
-    __asmb_line_3:
-        int32_t __asmb_reg_c = 0;
-    __asmb_line_4:
-        int32_t __asmb_reg_d = 0;
-    __asmb_line_5:
-        __asmb_reg_c += __asmb_reg_d;
-    __asmb_line_6:
-        ++__asmb_reg_a;
-    __asmb_line_7:
-        puts(__asmb_reg_a);
-    }
+	int main(void) {
+	__asmb_line_1:
+		int32_t __asmb_reg_a = 0;
+	__asmb_line_2:
+		int32_t __asmb_reg_b = 0;
+	__asmb_line_3:
+		int32_t __asmb_reg_c = 0;
+	__asmb_line_4:
+		int32_t __asmb_reg_d = 0;
+	__asmb_line_5:
+		__asmb_reg_c += __asmb_reg_d;
+	__asmb_line_6:
+		++__asmb_reg_a;
+	__asmb_line_7:
+		puts(__asmb_reg_a);
+	}
  */
 
 // C semantics
@@ -164,15 +164,15 @@ pub fn get_cline(toks: &Vec<&str>, linenum: u32) -> Result<String, String> {
 
 	match toks[0].to_lowercase().as_str() {
 		"def" => Ok(generators::def(toks)),
-        "inc" => Ok(generators::inc(toks)),
-        "inct" => Ok(generators::inct(toks)),
-        "dec" => Ok(generators::dec(toks)),
-        "dect" => Ok(generators::dect(toks)),
-        "mul" => Ok(generators::mul(toks)),
-        "div" => Ok(generators::div(toks)),
-        "cpy" => Ok(generators::cpy(toks)),
-        "jnz" => Ok(generators::jnz(toks, linenum)),
-        "out" => Ok(generators::out(toks)),
+		"inc" => Ok(generators::inc(toks)),
+		"inct" => Ok(generators::inct(toks)),
+		"dec" => Ok(generators::dec(toks)),
+		"dect" => Ok(generators::dect(toks)),
+		"mul" => Ok(generators::mul(toks)),
+		"div" => Ok(generators::div(toks)),
+		"cpy" => Ok(generators::cpy(toks)),
+		"jnz" => Ok(generators::jnz(toks, linenum)),
+		"out" => Ok(generators::out(toks)),
 		"outn" => Ok(generators::outn(toks)),
 		"outc" => Ok(generators::outc(toks)),
 		_ => Err(format!("Unknown keyword: {}", toks[0]))
