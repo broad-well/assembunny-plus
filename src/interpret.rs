@@ -1,5 +1,7 @@
-use std::collections::HashMap;
-use parser;
+use parser::{Token, TokenType};
+use std::ops::Index;
+use std::iter;
+use std::iter::FromIterator;
 
 /*
   This mod contains the interpreter part of Assembunny+. The abbreviated terminology for this mod is "ASMBI", for "ASseMBunny+ Interpreter".
@@ -8,58 +10,70 @@ use parser;
 
 pub struct AsmbiState {
 
-	/// Register map (with its own type)
-	pub regs: RegisterMap,
+    /// Register map (with its own type)
+    pub regs: RegisterMap,
 
-	/// Instruction Pointer, declared as u32 for ability to run more than 4 billion lines of ASMB.
-	/// (I don't anticipate any combined ASMB program to have more than 4 billion lines!)
-	pub ip: u32,
+    /// Instruction Pointer, declared as u32 for ability to run more than 4 billion lines of ASMB.
+    /// (I don't anticipate any combined ASMB program to have more than 4 billion lines!)
+    pub ip: u32,
 
 }
 
-/// This struct/impl wraps the Register HashMap in order to reduce boilerplate and redundancy on certain functions; It also makes code more readable.
+/// This struct/impl wraps the Register Vec in order to reduce boilerplate and redundancy on certain functions; It also makes code more readable.
 pub struct RegisterMap {
-	pub map: HashMap<String, i32>,
+    pub vec: Vec<i32>,
 }
 impl RegisterMap {
-	pub fn set(&mut self, reg_name: &str, val: i32) -> bool {
-		if !self.map.contains_key(reg_name) {
-			return false;
-		}
-		self.map.insert(reg_name.to_owned(), val);
-		true
-	}
+    pub fn index_set(&mut self, regindex: usize, val: i32) -> bool {
+        if self.vec.len() <= regindex {
+            return false;
+        }
+        self.vec[regindex] = val;
+        true
+    }
 
-	pub fn get(&self, name: &str) -> Option<&i32> {
-		self.map.get(name)
-	}
+    pub fn set(&mut self, regtok: &Token, newval: i32) -> bool {
+        self.index_set(regtok.val as usize, newval)
+    }
 
-	pub fn add(&mut self, reg_name: &str, val: i32) -> bool {
-		if self.map.contains_key(reg_name) {
-			return false;
-		}
-		self.map.insert(reg_name.to_owned(), val);
-		true
-	}
+    pub fn get(&self, index: usize) -> Option<&i32> {
+        if self.vec.len() <= index {
+            None
+        } else {
+            Some(self.vec.index(index))
+        }
+    }
 
-	pub fn modify<F>(&mut self, name: &str, modifier: F) -> bool
-			where F: Fn(i32) -> i32 {
-		let mut optval: i32 = 0;
-		{
-			match self.get(name) {
-				Some(val) => optval = *val,
-				None => return false
-			}
+    pub fn index_modify<F>(&mut self, index: usize, modifier: F) -> bool
+            where F: Fn(i32) -> i32 {
+        let mut optval: i32 = 0;
+        {
+            match self.get(index) {
+                Some(val) => optval = *val,
+                None => return false
+            }
+        }
+        self.index_set(index, modifier(optval))
+    }
 
-		}
-		self.set(name, modifier(optval))
-	}
+    pub fn modify<F>(&mut self, regtok: &Token, modifier: F) -> bool
+            where F: Fn(i32) -> i32 {
+        self.index_modify(regtok.val as usize, modifier)
+    }
 
-	pub fn new() -> Self {
-		RegisterMap {
-			map: HashMap::new(),
-		}
-	}
+    pub fn parse_token(&self, tok: &Token) -> i32 {
+        match tok.type_ {
+            TokenType::LITERAL => tok.val,
+            TokenType::REGISTER => *self.get(tok.val as usize).unwrap(),
+            _ => panic!("parse_token does not parse keyword tokens.")
+        }
+    }
+
+    pub fn new(capacity: usize) -> Self {
+        RegisterMap {
+            vec: Vec::from_iter(iter::repeat(0).take(capacity)),
+        }
+    }
 }
 
 /// Syntactic sugar for all return values in exec.
@@ -69,170 +83,121 @@ type Response = Result<(), String>;
 /// Each function has two arguments: mutable reference to AsmbiState and Vec<&str> tokens from the parser.
 /// The tokens are expected to be passed by parser::line_valid. If an error that was supposed to be caught in that function is encountered here, the program will panic!, reminding the developer that parser::line_valid is not working properly.
 mod exec {
-	use std::char;
-	use interpret::{AsmbiState, Response};
-	use parser;
+    use std::char;
+    use interpret::{AsmbiState, Response};
+    use parser::Token;
 
-	macro_rules! try_eval {
-		( $val:expr, $state:expr ) => (match parser::evaluate_val($val, &$state.regs.map) {
-			Err(why) => return Err(format!("Parameter evaluation failed: {}", why)),
-			Ok(val) => val
-		})
-	}
-	macro_rules! try_do {
-		( $fun:expr, $err:expr ) => (if $fun {
-			Ok(())
-		} else {
-			Err($err)
-		})
-	}
-	macro_rules! err_nonexist {
-		( $reg:expr ) => (format!("Register by name '{}' does not exist", $reg))
-	}
+    macro_rules! try_do {
+        ( $fun:expr, $err:expr ) => (if $fun {
+            Ok(())
+        } else {
+            Err($err)
+        })
+    }
+    macro_rules! try_set {
+        ( $fun:expr ) => (try_do!($fun, "Failed to set register value".to_owned()))
+    }
 
-	pub fn def(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
-		// Syntax: def <new register name> <evaluate_val candidate>
-		if let Err(problem) = parser::regname_valid(toks[1]) {
-			return Err(format!("Register name '{}' invalid: {}", toks[1], problem));
-		}
+    pub fn def(state: &mut AsmbiState, toks: &Vec<Token>) -> Response {
+        // Syntax: def <new register index> <new value>
+        // NOTE: All the separate `let` statements were adopted in order to prevent compiler errors regarding simultaneous mutable/immutable borrowing of state
+        let newval = state.regs.parse_token(&toks[2]);
+        try_set!(state.regs.set(&toks[1], newval))
+    }
 
-		let val = try_eval!(toks[2], state);
-		try_do!(
-			state.regs.add(toks[1], val),
-			format!("Register by name '{}' already exists", toks[1]))
-	}
+    pub fn inc(state: &mut AsmbiState, toks: &Vec<Token>) -> Response {
+        // Syntax: inc <register index>
+        try_set!(state.regs.modify(&toks[1], |v| v + 1))
+    }
 
-	pub fn inc(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
-		// Syntax: inc <register name>
-		try_do!(
-			state.regs.modify(toks[1], |v| v+1),
-			err_nonexist!(toks[1]))
-	}
+    pub fn inct(state: &mut AsmbiState, toks: &Vec<Token>) -> Response {
+        // Syntax: inct <register index> <value to add>
+        let adder = state.regs.parse_token(&toks[2]);
+        try_set!(state.regs.modify(&toks[1], |v| v + adder))
+    }
 
-	pub fn inct(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
-		// Syntax: inct <register name> <evaluate_val candidate>
-		let add = try_eval!(toks[2], state);
-		try_do!(
-			state.regs.modify(toks[1], |v| v+add),
-			err_nonexist!(toks[1]))
-	}
+    pub fn dec(state: &mut AsmbiState, toks: &Vec<Token>) -> Response {
+        // Syntax: dec <register name>
+        try_set!(state.regs.modify(&toks[1], |v| v - 1))
+    }
 
-	pub fn dec(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
-		// Syntax: dec <register name>
-		try_do!(
-			state.regs.modify(toks[1], |v| v-1),
-			err_nonexist!(toks[1]))
-	}
+    pub fn dect(state: &mut AsmbiState, toks: &Vec<Token>) -> Response {
+        // Syntax: dect <register name> <value to be eval'd>
+        let subtractor = state.regs.parse_token(&toks[2]);
+        try_set!(state.regs.modify(&toks[1], |v| v - subtractor))
+    }
 
-	pub fn dect(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
-		// Syntax: dect <register name> <value to be eval'd>
-		let subt = try_eval!(toks[2], state);
-		try_do!(
-			state.regs.modify(toks[1], |v| v - subt),
-			err_nonexist!(toks[1]))
-	}
+    pub fn mul(state: &mut AsmbiState, toks: &Vec<Token>) -> Response {
+        // Syntax: mul <register name> <eval-ue>
+        let multiplier = state.regs.parse_token(&toks[2]);
+        try_set!(state.regs.modify(&toks[1], |v| v * multiplier))
+    }
 
-	pub fn mul(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
-		// Syntax: mul <register name> <eval-ue>
-		let multiplier = try_eval!(toks[2], state);
-		try_do!(
-			state.regs.modify(toks[1], |v| v * multiplier),
-			err_nonexist!(toks[1]))
-	}
+    pub fn div(state: &mut AsmbiState, toks: &Vec<Token>) -> Response {
+        // Syntax: div <register name> <eval-ue>
+        // Note: floor the result
+        let quotient = state.regs.parse_token(&toks[2]);
+        try_set!(state.regs.modify(&toks[1], |v| v / quotient))
+    }
 
-	pub fn div(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
-		// Syntax: div <register name> <eval-ue>
-		// Note: floor the result
-		let divisor = try_eval!(toks[2], state);
-		try_do!(
-			state.regs.modify(toks[1], |v| v / divisor),
-			err_nonexist!(toks[1]))
-	}
+    pub fn cpy(state: &mut AsmbiState, toks: &Vec<Token>) -> Response {
+        // Syntax: cpy <eval-ue> <register name>
+        let newval = state.regs.parse_token(&toks[1]);
+        try_set!(state.regs.set(&toks[2], newval))
+    }
 
-	pub fn cpy(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
-		// Syntax: cpy <eval-ue> <register name>
-		let val: i32 = try_eval!(toks[1], state);
-		try_do!(
-			state.regs.set(toks[2], val),
-			format!("Register by the name of '{}' does not exist. Perhaps use DEF instead?", toks[2]))
-	}
+    pub fn jnz(state: &mut AsmbiState, toks: &Vec<Token>) -> Response {
+        // Syntax: cpy <eval-ue> <literal>
+        // Since IP is incremented after each line, go to relative line **minus 1** so the program works properly.
+        if state.regs.parse_token(&toks[1]) != 0 {
+            // TODO: add under/overflow checks
+            // Ugly hack for u32 adding i32; hope this will be supported in future versions of Rust.
+            let diff = state.regs.parse_token(&toks[2]) - 1;
+            if diff < 0 {
+                state.ip -= (-diff) as u32
+            } else {
+                state.ip += diff as u32
+            }
+        }
+        Ok(())
+    }
 
-	pub fn jnz(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
-		// Syntax: cpy <eval-ue> <literal>
-		// Since IP is incremented after each line, go to relative line **minus 1** so the program works properly.
-		if try_eval!(toks[1], state) != 0 {
-			// TODO: add under/overflow checks
-			// Ugly hack for u32 adding i32; hope this will be supported in future versions of Rust.
-			let diff = try_eval!(toks[2], state) - 1;
-			if diff < 0 {
-				state.ip -= (-diff) as u32
-			} else {
-				state.ip += diff as u32
-			}
-		}
-		Ok(())
-	}
+    pub fn out(state: &mut AsmbiState, toks: &Vec<Token>) -> Response {
+        // Syntax: out <eval-ue>
+        print!("{} ", state.regs.parse_token(&toks[1]));
+        Ok(())
+    }
 
-	pub fn out(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
-		// Syntax: out <eval-ue>
-		print!("{} ", try_eval!(toks[1], state));
-		Ok(())
-	}
+    pub fn outn(state: &mut AsmbiState, toks: &Vec<Token>) -> Response {
+        // Syntax: outn <eval-ue>
+        println!("{}", state.regs.parse_token(&toks[1]));
+        Ok(())
+    }
 
-	pub fn outn(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
-		// Syntax: outn <eval-ue>
-		println!("{}", try_eval!(toks[1], state));
-		Ok(())
-	}
+    pub fn outc(state: &mut AsmbiState, toks: &Vec<Token>) -> Response {
+        // Syntax: outc <eval-ue>
+        let val = state.regs.parse_token(&toks[1]);
+        if val < 0 {
+            return Err(format!("Char code ({}) should not be less than zero", val));
+        }
+        match char::from_u32(val as u32) {
+            Some(v) => print!("{}", v),
+            _ => return Err(format!("Char code ({}) is invalid", val))
+        }
+        Ok(())
+    }
 
-	pub fn outc(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
-		// Syntax: outc <eval-ue>
-		let val = try_eval!(toks[1], state);
-		if val < 0 {
-			return Err(format!("Char code ({}) should not be less than zero", val));
-		}
-		match char::from_u32(val as u32) {
-			Some(v) => print!("{}", v),
-			_ => return Err(format!("Char code ({}) is invalid", val))
-		}
-		Ok(())
-	}
-
-    const INDEX: [fn(&mut AsmbiState, Vec<&str>) -> Response; 12] = [def, inc, inct, dec, dect, mul, div, cpy, jnz, out, outn, outc];
+    pub const INDEX: [fn(&mut AsmbiState, &Vec<Token>) -> Response; 12] = [def, inc, inct, dec, dect, mul, div, cpy, jnz, out, outn, outc];
 }
 
-pub fn execute(state: &mut AsmbiState, toks: Vec<&str>) -> Response {
-	// Redundancy can be solved with anonymous closures in HashMaps
-	// Worth executing?
-	if parser::worth_execution(&toks).is_err() {
-		return Ok(());
-	}
-
-	// Line checked and invalid
-	if let Err(err) = parser::line_valid(&toks) {
-		return Err(format!("Invalid: {}", err));
-	}
-
-	match toks[0].to_lowercase().as_str() {
-		"def" => exec::def(state, toks),
-		"inc" => exec::inc(state, toks),
-		"inct" => exec::inct(state, toks),
-		"dec" => exec::dec(state, toks),
-		"dect" => exec::dect(state, toks),
-		"mul" => exec::mul(state, toks),
-		"div" => exec::div(state, toks),
-		"cpy" => exec::cpy(state, toks),
-		"jnz" => exec::jnz(state, toks),
-		"out" => exec::out(state, toks),
-		"outn" => exec::outn(state, toks),
-		"outc" => exec::outc(state, toks),
-		_ => Err(format!("Unknown keyword: {}", toks[0]))
-	}
+pub fn execute(state: &mut AsmbiState, toks: &Vec<Token>) -> Response {
+    assert_eq!(toks[0].type_, TokenType::KEYWORD);
+    exec::INDEX[toks[0].val as usize](state, toks)
 }
 
-pub fn new_state() -> AsmbiState {
-	AsmbiState {
-		regs: RegisterMap::new(),
-		ip: 0
-	}
+pub fn new_state(capacity: usize) -> AsmbiState {
+    AsmbiState {
+        regs: RegisterMap::new(capacity),
+        ip: 0
+    }
 }

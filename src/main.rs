@@ -44,7 +44,9 @@ fn main() {
 		println!("Welcome to the Assembunny-plus REPL.");
 		println!("Use :help for help, :reg for registers and their values, and :unlicense for the unlicense.");
 		println!("At the > prompt, enter your lines of Assembunny-plus.");
-		let mut state = interpret::new_state();
+		let mut state = interpret::new_state(0);
+		let mut regs: Vec<String> = Vec::new();
+		let mut show_raw_token = false;
 		loop {
 			print!("{}::>", state.ip);
 			io::stdout().flush().expect("Stdout clogged");
@@ -53,32 +55,57 @@ fn main() {
 				.expect("Line read failed");
 
 			if input.trim().is_empty() { continue }
-
-			let tokens = parser::tokenize_line(&input);
+			let str_tokens = parser::tokenize_line(&input);
 
 			if input.starts_with(":") {
-				match tokens[0] {
+				match str_tokens[0] {
 					":help" => println!("Not available now"),
 					":reg" => {
-						for (key,val) in &state.regs.map {
-							println!("{} => {}", key, val);
+						for (index, val) in state.regs.vec.iter().enumerate() {
+							println!("{} => {}", regs[index], val);
 						}
 					},
 					":exit" => {
 						println!("Bye");
 						break
 					},
+					":rawtoken" => {
+						show_raw_token = !show_raw_token;
+						println!("Toggled show raw tokens before execution");
+					},
 					_ => {}
 				}
 				continue;
 			}
 
-			if tokens[0].to_lowercase() == "jnz" {
+			let tokens = match parser::to_tokens(&input, &mut regs) {
+				Ok(opttok) => if opttok.is_none() {
+					continue
+				} else {
+					opttok.unwrap()
+				},
+				Err(problem) => {
+					println!("{} {}", Red.paint("Failed to tokenize:"), problem);
+					continue
+				}
+			};
+
+
+			if str_tokens[0].to_lowercase() == "jnz" {
 				println!("{}", Red.paint("This REPL does not support JNZ."));
 				continue;
 			}
 
-			if let Err(errmsg) = interpret::execute(&mut state, tokens) {
+			if show_raw_token {
+				println!("{}", tokens.iter().map(|token| token.to_string()).collect::<Vec<_>>().join(","));
+			}
+
+			// Since the interpreter is optimized for files, we have to dynamically allocate before `def` lines get executed.
+			if str_tokens[0].to_lowercase() == "def" {
+				state.regs.vec.push(0);
+			}
+
+			if let Err(errmsg) = interpret::execute(&mut state, &tokens) {
 				println!("{} {}", Red.paint("Failed:"), errmsg);
 			} else {
 				state.ip += 1;

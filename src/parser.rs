@@ -151,6 +151,11 @@ pub fn line_valid(toks: &Vec<&str>) -> Result<(), String> {
 		    "outn" => "B", "outc" => "B"
 		);
 	}
+    // Empty?
+    if toks.len() == 0 {
+        return Ok(());
+    }
+    // Comments?
     if toks[0].starts_with("/") || toks[0].starts_with("#") || toks[0].starts_with(":") {
         return Ok(());
     }
@@ -245,7 +250,7 @@ impl fmt::Display for Token {
 }
 
 /// Describes the types a token can be. (denoted by a `Token`'s `type_` property)
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum TokenType {
     KEYWORD,
     REGISTER,
@@ -262,10 +267,14 @@ pub fn index_of<T: PartialEq>(slice: &[T], item: &T) -> Option<usize> {
     slice.iter().position(|elem| elem == item)
 }
 
-pub fn to_tokens(line: &str, existing_regs: &mut Vec<String>) -> Result<Vec<Token>, String> {
+pub fn to_tokens(line: &str, existing_regs: &mut Vec<String>) -> Result<Option<Vec<Token>>, String> {
     let str_toks = tokenize_line(line);
     if let Err(problem) = line_valid(&str_toks) {
         return Err(format!("Line invalid: {}", problem));
+    }
+
+    if worth_execution(&str_toks).is_err() {
+        return Ok(None);
     }
 
     // If keyword is "def", add the defined register to `existing_regs` because the existence of this register will be checked later
@@ -274,7 +283,7 @@ pub fn to_tokens(line: &str, existing_regs: &mut Vec<String>) -> Result<Vec<Toke
     }
 
     let mut output: Vec<Token> = vec![Token::new(TokenType::KEYWORD, index_of(&KEYWORD_INDEX, &&*str_toks[0].to_lowercase()).unwrap() as i32)];
-    for index in 1..str_toks.len()-1 {
+    for index in 1..str_toks.len() {
         if let Ok(val) = is_literal(str_toks[index]) {
             output.push(Token::new(TokenType::LITERAL, val));
         } else if !existing_regs.contains(&str_toks[index].to_owned()) {
@@ -283,5 +292,5 @@ pub fn to_tokens(line: &str, existing_regs: &mut Vec<String>) -> Result<Vec<Toke
             output.push(Token::new(TokenType::REGISTER, index_of(existing_regs, &str_toks[index].to_owned()).unwrap() as i32));
         }
     }
-    Ok(output)
+    Ok(Some(output))
 }
