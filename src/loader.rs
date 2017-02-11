@@ -34,7 +34,6 @@ pub fn run_file(filename: &str) -> Result<u64, String> {
 	// ftoks: File tokens
 	for line in fstr.lines() {
 		if let Some(tokens) = try!(parser::to_tokens(line, &mut regs)) {
-			// Trick to convert Tokens to references
 			ftoks.push(tokens);
 		}
 	}
