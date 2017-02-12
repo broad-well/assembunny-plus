@@ -44,6 +44,7 @@ impl RegisterMap {
         }
     }
 
+    #[allow(unused_assignments)]
     pub fn index_modify<F>(&mut self, index: usize, modifier: F) -> bool
             where F: Fn(i32) -> i32 {
         let mut optval: i32 = 0;

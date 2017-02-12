@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::fmt;
 use regex::Regex;
+use byteorder::{BigEndian, WriteBytesExt};
 
 /* Available keywords:
 
@@ -240,6 +241,17 @@ impl Token {
             type_: type_,
             val: val,
         }
+    }
+
+    pub fn to_bytearray(self) -> Vec<u8> {
+        let mut output: Vec<u8> = vec![self.type_ as i32 as u8];
+        output.write_i32::<BigEndian>(self.val).unwrap();
+        assert_eq!(output.len(), 5);
+        output
+    }
+
+    pub fn from_bytearray(barray: &[u8]) -> Result<Self, String> {
+        unimplemented!();
     }
 }
 

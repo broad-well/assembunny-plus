@@ -2,16 +2,20 @@
 extern crate regex;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate maplit;
+#[macro_use] extern crate enum_primitive;
 extern crate clap;
 extern crate ansi_term;
+extern crate byteorder;
 use clap::{Arg, App};
 use std::io;
 use std::io::Write;
 use ansi_term::Colour::Red;
+#[macro_use] pub mod macros;
 pub mod parser;
 pub mod interpret;
 pub mod gen_c;
 pub mod loader;
+pub mod bytecode;
 
 /// Main function for the CLI. Uses `clap` for args handling.
 fn main() {
@@ -32,13 +36,31 @@ fn main() {
 			.value_name("asmb file")
 			.help("Compiles the given ASMB file to C source code and prints it to STDOUT")
 			.takes_value(true))
+		.arg(Arg::with_name("to-bytecode")
+			.short("b")
+			.long("to-bytecode")
+			.multiple(true)
+			.value_name("ASMB+ source file")
+			.value_name("Bytecode output file")
+			.help("Converts the ASMB source file's contents to ASMBB and stores the binary data into the bytecode output file")
+			.takes_value(true)
+			.conflicts_with_all(&["interpret", "compile"]))
 		.get_matches();
 
 	if clap_matches.is_present("interpret") {
 		if let Err(errno) = loader::run_file(
-			clap_matches.value_of("interpret").unwrap()) {
+				clap_matches.value_of("interpret").unwrap()) {
 			println!("{} {}", Red.paint("Run file failed:"), errno);
+			abort!();
 		}
+	} else if clap_matches.is_present("to-bytecode") {
+		// Convert to bytecode
+		let fileinputs: Vec<_> = clap_matches.values_of("to-bytecode").unwrap().collect();
+		if let Err(problem) = loader::convert_to_bytecode(fileinputs[0], fileinputs[1]) {
+			println!("{}{}", Red.paint("Conversion to bytecode failed: "), problem);
+			abort!();
+		}
+
 	} else if !clap_matches.is_present("compile") {
 		// Enter REPL
 		println!("Welcome to the Assembunny-plus REPL.");
@@ -86,7 +108,7 @@ fn main() {
 				},
 				Err(problem) => {
 					println!("{} {}", Red.paint("Failed to tokenize:"), problem);
-					continue
+					continue;
 				}
 			};
 
@@ -116,7 +138,10 @@ fn main() {
 				clap_matches.value_of("compile").unwrap()) {
 
 			Ok(c_code) => println!("{}", c_code),
-			Err(errno) => println!("{} {}", Red.paint("Compile file failed:"), errno)
+			Err(errno) => {
+				println!("{} {}", Red.paint("Compile file failed:"), errno);
+				abort!();
+			}
 		}
 	}
 }

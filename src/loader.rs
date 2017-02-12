@@ -1,17 +1,15 @@
 // The loader of files for ASMBI. A function here is directly called from main.rs.
-use std::io::Read;
-use std::fs::File;
+use std::io::{Read, Write};
+use std::fs::{File, OpenOptions};
 use std::ops::Index;
 use interpret;
 use parser;
 use parser::Token;
 use gen_c;
+use bytecode;
 
 macro_rules! try_do_res {
-	( $fun:expr, $err:expr ) => (match $fun {
-		Ok(x) => x,
-		Err(_) => return Err($err.to_owned())
-	});
+	( $fun:expr, $err:expr ) => (try_failsafe!($fun, $err.to_owned()));
 }
 
 macro_rules! index_option {
@@ -21,10 +19,9 @@ macro_rules! index_option {
 		Some($vec.index($index))
 	})
 }
+
 pub fn run_file(filename: &str) -> Result<u64, String> {
-	let mut file = try_do_res!(File::open(filename), "File not found");
-	let mut fstr = String::new();
-	try_do_res!(file.read_to_string(&mut fstr), "File unreadable");
+	let mut fstr = file_to_string!(filename);
 
 	let mut regs: Vec<String> = Vec::new();
 	let mut ftoks: Vec<Vec<Token>> = Vec::new();
@@ -50,8 +47,20 @@ pub fn run_file(filename: &str) -> Result<u64, String> {
 }
 
 pub fn compile_file(filename: &str) -> Result<String, String> {
-	let mut file = try_do_res!(File::open(filename), "File not found");
-	let mut fstr = String::new();
-	try_do_res!(file.read_to_string(&mut fstr), "File unreadable");
+	let fstr = file_to_string!(filename);
 	gen_c::compose(&fstr.lines().collect::<Vec<_>>())
+}
+
+pub fn convert_to_bytecode(src_file: &str, target_file: &str) -> Result<(), String> {
+	let src = file_to_string!(src_file);
+	let mut outfile: File = try_do_res!(OpenOptions::new()
+		.write(true)
+		.create(true)
+		.open(target_file), "Unable to create file");
+	try_do_res!(
+		outfile.write(
+			&*try_err_fallthru!(bytecode::to_bytecode(&src.lines().collect::<Vec<_>>()), "Bytecode generation failed: ")),
+			"Unable to write to bytecode output file"
+	);
+	Ok(())
 }
