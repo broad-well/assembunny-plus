@@ -1,5 +1,5 @@
 use parser;
-use parser::Token;
+use parser::{Token, TokenType};
 use std::iter;
 use std::io::Cursor;
 
@@ -55,14 +55,21 @@ pub fn to_bytecode(asmbp: &Vec<&str>) -> Result<Vec<u8>, String> {
 
 // Converts a given bytecode sequence (Vec<u8>) to (usize /* register count */, Vec<Vec<Token>>).
 pub fn from_bytecode(bytecode: &Vec<u8>) -> Result<(usize, Vec<Vec<Token>>), String> {
-/*    let mut seg1reader = Cursor::new(&bytecode[0..4]);
+    let mut seg1reader = Cursor::new(&bytecode[0..4]);
     let reg_count = try_failsafe!(seg1reader.read_u32::<BigEndian>(), "Failed to read register count in metadata".to_owned()) as usize;
 
     let segment2 = bytecode[32..].chunks(5);
-    let mut toks: Vec<Vec<Token>> = Vec::new();*/
+    let mut toks: Vec<Vec<Token>> = Vec::new();
 
-    //for bytoken in segment2 {
-    //
-    //}
-    unimplemented!()
+    for (index, bytoken) in segment2.enumerate() {
+        let token = try_err_fallthru!(Token::from_bytearray(&bytoken),
+                                          format!("Failed to convert from bytes to Token in chunk index {}: ", index));
+        if token.type_ == TokenType::KEYWORD {
+            toks.push(vec![token]);
+        } else {
+            try_opt!(toks.last_mut(),
+                     "First token is not of type KEYWORD".to_owned()).push(token);
+        }
+    }
+    Ok((reg_count, toks))
 }

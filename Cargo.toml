@@ -1,6 +1,6 @@
 [package]
 name = "assembunny_plus"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["broad-well <michael@mcmoo.org>"]
 description = "A compiler/interpreter of a language that's extended from the Assembunny concept introduced in Advent of Code 2016"
 repository = "https://github.com/broad-well/assembunny-plus"

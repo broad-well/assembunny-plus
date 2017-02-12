@@ -98,7 +98,7 @@ pub mod generators {
 
 	pub fn inct(args: &Vec<&str>) -> String {
 		// Syntax: inct <reg name> <eval>
-		format!("{} += {};", reg!(args[1]), reg!(args[2]))
+		format!("{} += {};", reg!(args[1]), eval!(args[2]))
 	}
 
 	pub fn dec(args: &Vec<&str>) -> String {

@@ -44,7 +44,14 @@ fn main() {
 			.value_name("Bytecode output file")
 			.help("Converts the ASMB source file's contents to ASMBB and stores the binary data into the bytecode output file")
 			.takes_value(true)
-			.conflicts_with_all(&["interpret", "compile"]))
+			.conflicts_with_all(&["interpret", "compile", "from-bytecode"]))
+		.arg(Arg::with_name("from-bytecode")
+			.short("e")
+			.long("from-bytecode")
+			.value_name("Bytecode input file")
+			.help("Reads ASMBP bytecode from the specified input file and executes the instructions")
+			.takes_value(true)
+			.conflicts_with_all(&["interpret", "compile", "to-bytecode"]))
 		.get_matches();
 
 	if clap_matches.is_present("interpret") {
@@ -57,10 +64,16 @@ fn main() {
 		// Convert to bytecode
 		let fileinputs: Vec<_> = clap_matches.values_of("to-bytecode").unwrap().collect();
 		if let Err(problem) = loader::convert_to_bytecode(fileinputs[0], fileinputs[1]) {
-			println!("{}{}", Red.paint("Conversion to bytecode failed: "), problem);
+			println!("{} {}", Red.paint("Conversion to bytecode failed:"), problem);
 			abort!();
 		}
-
+	} else if clap_matches.is_present("from-bytecode") {
+		// Run bytecode
+		if let Err(problem) = loader::run_bytecode(clap_matches.value_of("from-bytecode").unwrap()) {
+			println!("{} {}", Red.paint("Execution of bytecode failed:"), problem);
+			abort!();
+			// TODO: a macro for the procedure above, repeated 3 times.
+		}
 	} else if !clap_matches.is_present("compile") {
 		// Enter REPL
 		println!("Welcome to the Assembunny-plus REPL.");

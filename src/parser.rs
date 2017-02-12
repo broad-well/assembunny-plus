@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::fmt;
 use regex::Regex;
-use byteorder::{BigEndian, WriteBytesExt};
+use std::io::Cursor;
+use byteorder::{BigEndian, WriteBytesExt, ReadBytesExt};
+use enum_primitive::FromPrimitive;
 
 /* Available keywords:
 
@@ -245,13 +247,19 @@ impl Token {
 
     pub fn to_bytearray(self) -> Vec<u8> {
         let mut output: Vec<u8> = vec![self.type_ as i32 as u8];
+        // Appears to use Two's Complement to represent the signed number (at least on macOS Sierra, Intel x86-64)
         output.write_i32::<BigEndian>(self.val).unwrap();
         assert_eq!(output.len(), 5);
         output
     }
 
     pub fn from_bytearray(barray: &[u8]) -> Result<Self, String> {
-        unimplemented!();
+        let token_type = try_opt!(TokenType::from_i32(barray[0] as i32),
+                                  "Failed to read TokenType value from Token byte-array".to_owned());
+        let mut valreader = Cursor::new(&barray[1..5]);
+        let value = try_failsafe!(valreader.read_i32::<BigEndian>(),
+                                      "Failed to read i32 value from Token byte-array".to_owned());
+        Ok(Self::new(token_type, value))
     }
 }
 
@@ -262,12 +270,13 @@ impl fmt::Display for Token {
 }
 
 /// Describes the types a token can be. (denoted by a `Token`'s `type_` property)
+enum_from_primitive! {
 #[derive(Debug, PartialEq, Eq)]
 pub enum TokenType {
-    KEYWORD,
-    REGISTER,
-    LITERAL,
-}
+    KEYWORD = 0,
+    REGISTER = 1,
+    LITERAL = 2,
+}}
 
 impl fmt::Display for TokenType {
     fn fmt(&self, fmtr: &mut fmt::Formatter) -> fmt::Result {

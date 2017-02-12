@@ -10,8 +10,16 @@ macro_rules! try_failsafe {
     })
 }
 
+/// Just like try_failsafe, except for Option instead of Result regarding token $todo.
+macro_rules! try_opt {
+    ( $todo:expr, $err:expr ) => (match $todo {
+        Some(val) => val,
+        None => return Err($err)
+    })
+}
+
 /// Reads a certain file to String and returns that.
-/// Same as try_failsafe!, this macro requires fn's calling it to return Result<(), String>.
+/// Same as try_failsafe!, this macro requires fn's calling it to return Result<_, String>.
 macro_rules! file_to_string {
 	( $filename:expr ) => ({
 		let mut file = try_failsafe!(File::open($filename), format!("File not found for path {:?}", $filename));
@@ -19,6 +27,17 @@ macro_rules! file_to_string {
 		try_failsafe!(file.read_to_string(&mut fcontents), format!("Error reading file {:?}", $filename));
 		fcontents
 	})
+}
+
+/// Reads a certain file to Vec of u8 (bytes) and returns that.
+/// Same as try_failsafe!, this macro requires fn's calling it to return Result<_, String>.
+macro_rules! file_to_bytevec {
+    ( $filename:expr ) => ({
+        let mut file = try_failsafe!(File::open($filename), format!("File not found for path {:?}", $filename));
+        let mut bytes: Vec<u8> = Vec::new();
+        try_failsafe!(file.read_to_end(&mut bytes), format!("Error reading file {:?}", $filename));
+        bytes
+    })
 }
 
 /// Tries to do $todo,
