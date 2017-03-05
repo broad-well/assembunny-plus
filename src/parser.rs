@@ -300,6 +300,9 @@ pub fn to_tokens(line: &str, existing_regs: &mut Vec<String>) -> Result<Option<V
 
     // If keyword is "def", add the defined register to `existing_regs` because the existence of this register will be checked later
     if str_toks[0].to_lowercase() == "def" {
+        if existing_regs.contains(&str_toks[1].to_owned()) {
+            return Err(format!("def {}: Register name already exists", str_toks[1]));
+        }
         existing_regs.push(str_toks[1].to_owned());
     }
 

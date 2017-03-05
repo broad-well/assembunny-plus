@@ -22,7 +22,7 @@ fn main() {
 	let clap_matches = App::new("Assembunny-plus")
 		.version("0.0.1")
 		.author("Michael P. <michael@mcmoo.org>")
-		.about("A C compiler and interpreter for Assembunny+, an ASM-like language extended from the Assembunny concept in Advent of Code 2016")
+		.about("A compiler, interpreter, and bytecode manager for Assembunny+, an ASM-like language extended from the Assembunny concept in Advent of Code 2016")
 		.arg(Arg::with_name("interpret")
 			.short("i")
 			.long("interpret")

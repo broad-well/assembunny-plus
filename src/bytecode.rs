@@ -63,7 +63,7 @@ pub fn from_bytecode(bytecode: &Vec<u8>) -> Result<(usize, Vec<Vec<Token>>), Str
 
     for (index, bytoken) in segment2.enumerate() {
         let token = try_err_fallthru!(Token::from_bytearray(&bytoken),
-                                          format!("Failed to convert from bytes to Token in chunk index {}: ", index));
+                                      format!("Failed to convert from bytes to Token in chunk index {}: ", index));
         if token.type_ == TokenType::KEYWORD {
             toks.push(vec![token]);
         } else {
