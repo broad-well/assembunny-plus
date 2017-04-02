@@ -290,6 +290,8 @@ pub fn index_of<T: PartialEq>(slice: &[T], item: &T) -> Option<usize> {
 
 pub fn to_tokens(line: &str, existing_regs: &mut Vec<String>) -> Result<Option<Vec<Token>>, String> {
     let str_toks = tokenize_line(line);
+    let keyword = str_toks[0].to_lowercase();
+
     if let Err(problem) = line_valid(&str_toks) {
         return Err(format!("Line invalid: {}", problem));
     }
@@ -299,14 +301,16 @@ pub fn to_tokens(line: &str, existing_regs: &mut Vec<String>) -> Result<Option<V
     }
 
     // If keyword is "def", add the defined register to `existing_regs` because the existence of this register will be checked later
-    if str_toks[0].to_lowercase() == "def" {
+    if keyword == "def" {
         if existing_regs.contains(&str_toks[1].to_owned()) {
             return Err(format!("def {}: Register name already exists", str_toks[1]));
         }
         existing_regs.push(str_toks[1].to_owned());
     }
 
-    let mut output: Vec<Token> = vec![Token::new(TokenType::KEYWORD, index_of(&KEYWORD_INDEX, &&*str_toks[0].to_lowercase()).unwrap() as i32)];
+    let mut output: Vec<Token> = vec![Token::new(TokenType::KEYWORD, 
+        KEYWORD_INDEX.iter().position(|kw| kw.to_owned() == keyword).unwrap() as i32)];
+    
     for index in 1..str_toks.len() {
         if let Ok(val) = is_literal(str_toks[index]) {
             output.push(Token::new(TokenType::LITERAL, val));
@@ -317,4 +321,35 @@ pub fn to_tokens(line: &str, existing_regs: &mut Vec<String>) -> Result<Option<V
         }
     }
     Ok(Some(output))
+}
+
+#[cfg(test)]
+mod parse_test {
+    use parser::*;
+    
+    #[test]
+    fn tokenize() {
+        let tokens = tokenize_line("Hello world I'm test\\ 12345");
+        assert_eq!(tokens, vec!["Hello", "world", "I'm", "test\\", "12345"]);
+    }
+
+    #[test]
+    fn regname_check() {
+        assert!(regname_valid("AValidRegister").is_ok());
+        assert!(regname_valid("_one_underscore_in_front").is_ok());
+        assert!(regname_valid("1number_start").is_err());
+        assert!(regname_valid("-invalid-char").is_err());
+        assert!(regname_valid("__c_code").is_err());
+    } 
+
+    #[test]
+    fn line_check() {
+        // Target 1: empty / comment
+        assert!(line_valid(vec![]).is_ok());
+        assert!(line_valid(vec!["#", "this line is a comment"]).is_ok());
+
+        // Target 2: unknown keyword
+        assert!(line_valid(vec!["mykw", "342", "412"]).is_err());
+        // TODO: unfinished
+    }
 }
